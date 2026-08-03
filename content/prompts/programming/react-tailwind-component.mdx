@@ -1,0 +1,57 @@
+---
+title: "React & Tailwind CSS Component Generator"
+slug: "react-tailwind-component"
+platform: "ChatGPT"
+category: "Programming"
+excerpt: "Generate clean, semantic, and highly responsive React functional components styled with Tailwind CSS utility classes."
+difficulty: "Intermediate"
+featured: true
+free: true
+tags:
+  - React
+  - Tailwind CSS
+  - ChatGPT
+  - Frontend
+author: "Ravi Prakash"
+publishedAt: "2026-08-03"
+updatedAt: "2026-08-03"
+variables:
+  - name: "componentName"
+    placeholder: "e.g., Collapsible Nav Accordion"
+  - name: "extraRules"
+    placeholder: "e.g., must support keyboard tabs navigation and hover zooms"
+exampleInput: "Component: Tabs, Extra: 3 options with smooth fade animations"
+exampleOutput: |
+  ```tsx
+  import React, { useState } from 'react';
+  
+  export function TabsComponent() {
+    const [activeTab, setActiveTab] = useState(0);
+    return (
+      <div className="flex gap-4 p-4 border rounded-xl bg-card border-border">
+        {/* Tabs code goes here */}
+      </div>
+    );
+  }
+  ```
+prompt: |
+  You are an expert Principal Frontend Engineer specializing in Next.js and Tailwind CSS.
+  Please write a modern React component that fulfills the following structural requirements:
+  - Build component: "[componentName]"
+  - Custom guidelines: "[extraRules]"
+  - Ensure semantic HTML, complete TypeScript types, and follow ARIA guidelines for keyboard accessibility.
+  - Return code inside a single block with zero explanatory text.
+---
+
+# React & Tailwind CSS Component Generator
+
+Accelerate your UI engineering process by creating semantic React components built with modern Tailwind CSS styles and full ARIA keyboard compliance.
+
+<Info title="System Instruction">
+  This prompt is pre-configured to instruct ChatGPT to output raw code directly, avoiding excessive commentary and introductory text.
+</Info>
+
+### Usage Guidelines
+1. Fill in the **Component Name** variable in the input field above.
+2. Add any additional layout specifications or interactions in the **Extra Rules** box.
+3. Click "Copy Prompt" and paste directly into ChatGPT or Claude.

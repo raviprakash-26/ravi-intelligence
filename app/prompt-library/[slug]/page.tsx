@@ -74,7 +74,7 @@ export default function PromptDetailPage() {
               <h3 className="text-lg font-bold text-foreground">Visual Output Mockup</h3>
               <div className="aspect-square w-full rounded-2xl overflow-hidden border border-border relative bg-slate-100 dark:bg-slate-900">
                 <img
-                  src={item.previewImage}
+                  src={item.previewImage || item.coverImage || ""}
                   alt={item.title}
                   className="w-full h-full object-cover"
                 />

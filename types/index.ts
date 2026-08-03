@@ -61,20 +61,9 @@ export interface Product {
   rating: number;
   reviewsCount: number;
 }
-
-export interface PromptItem {
-  id: string;
-  slug: string;
-  title: string;
-  prompt: string;
-  previewImage: string;
-  category: "Business" | "AI" | "Marketing" | "YouTube" | "Instagram" | "LinkedIn" | "Logo Design" | "Website Design" | "3D Illustration" | "UI Design" | "Icons" | "Product Mockups" | "Portrait Photography" | "Food Photography" | "Architecture" | "Fantasy Art" | "Anime" | "Realistic Images";
-  difficulty: Difficulty;
-  tags: string[];
-}
-
 export * from "./author";
 export * from "./category";
 export * from "./article";
 export * from "./resource";
 export * from "./learn";
+export * from "./prompt";
