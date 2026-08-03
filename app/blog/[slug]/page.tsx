@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { TableOfContents } from "@/components/blog/table-of-contents";
 import { ShareButtons } from "@/components/blog/share-buttons";
 import { ArticleCard } from "@/components/common/cards";
-import { articles } from "@/content/articles";
+import { getArticleBySlug, getAllArticles } from "@/lib/content";
 import { ArticleSchema, BreadcrumbsSchema } from "@/components/common/seo";
 
 interface PageProps {
@@ -16,21 +16,23 @@ interface PageProps {
 
 export default async function BlogPostPage({ params }: PageProps) {
   const { slug } = await params;
-  const article = articles.find((a) => a.slug === slug);
+  const article = await getArticleBySlug(slug);
 
   if (!article) {
     notFound();
   }
 
+  const allArticlesList = await getAllArticles();
+
   // Fetch 2 related articles
-  const relatedArticles = articles
+  const relatedArticles = allArticlesList
     .filter((a) => a.id !== article.id && (a.category === article.category || a.tags.some(t => article.tags.includes(t))))
     .slice(0, 2);
 
   // Fallback to general articles if no exact category match
   const recommendations = relatedArticles.length > 0 
     ? relatedArticles 
-    : articles.filter(a => a.id !== article.id).slice(0, 2);
+    : allArticlesList.filter(a => a.id !== article.id).slice(0, 2);
 
   const breadcrumbs = [
     { name: "Home", item: "https://ravi-intelligence.com" },
@@ -179,4 +181,11 @@ export default async function BlogPostPage({ params }: PageProps) {
       <Footer />
     </div>
   );
+}
+
+export async function generateStaticParams() {
+  const articlesList = await getAllArticles();
+  return articlesList.map((a) => ({
+    slug: a.slug,
+  }));
 }

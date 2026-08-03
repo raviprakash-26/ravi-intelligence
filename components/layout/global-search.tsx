@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Search, FileText, Newspaper, BookOpen, ShoppingBag, Download, Sparkles, Command } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { articles } from "@/content/articles";
 import { news } from "@/content/news";
 import { products } from "@/content/products";
 import { resources } from "@/content/resources";
@@ -25,6 +24,18 @@ export function GlobalSearch() {
   const [query, setQuery] = React.useState("");
   const [filter, setFilter] = React.useState<"all" | "article" | "news" | "path" | "product" | "resource" | "prompt">("all");
   const router = useRouter();
+  const [articlesList, setArticlesList] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    fetch("/api/articles")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setArticlesList(data);
+        }
+      })
+      .catch((err) => console.error("Error loading articles search index:", err));
+  }, []);
 
   // Keyboard shortcut Ctrl+K / Cmd+K
   React.useEffect(() => {
@@ -43,7 +54,7 @@ export function GlobalSearch() {
     const items: SearchResult[] = [];
 
     // Articles
-    articles.forEach((a) => {
+    articlesList.forEach((a) => {
       items.push({
         id: a.id,
         type: "article",
@@ -91,19 +102,19 @@ export function GlobalSearch() {
     });
 
     // Prompts
-    prompts.forEach((pr) => {
+    prompts.forEach((p) => {
       items.push({
-        id: pr.id,
+        id: p.id,
         type: "prompt",
-        title: pr.title,
-        description: pr.prompt,
-        url: `/prompt-library/${pr.slug}`,
-        category: pr.category,
+        title: p.title,
+        description: p.tags.join(", "),
+        url: `/prompt-library/${p.slug}`,
+        category: p.category,
       });
     });
 
     return items;
-  }, []);
+  }, [articlesList]);
 
   // Filter and Query Logic
   const filteredResults = React.useMemo(() => {
