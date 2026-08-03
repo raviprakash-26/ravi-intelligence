@@ -16,49 +16,65 @@ import { FAQ, MdxImage, CodeBlock } from "./mdx-client-components";
 
 interface CalloutProps {
   children: React.ReactNode;
+  title?: string;
 }
 
-export function Info({ children }: CalloutProps) {
+export function Info({ children, title }: CalloutProps) {
   return (
-    <div className="flex gap-3 p-4 my-5 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-950/20 text-blue-900 dark:text-blue-200 text-sm leading-relaxed">
-      <InfoIcon className="h-5 w-5 shrink-0 text-blue-500 mt-0.5" />
-      <div>{children}</div>
+    <div className="p-4 my-5 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/30 dark:bg-blue-950/10 text-slate-800 dark:text-slate-350 text-sm leading-relaxed space-y-1.5">
+      <div className="flex items-center gap-2 font-extrabold text-blue-900 dark:text-blue-200 select-none">
+        <InfoIcon className="h-4.5 w-4.5 text-blue-500 shrink-0" />
+        <span>{title || "Information"}</span>
+      </div>
+      <div className="pl-6.5 text-slate-700 dark:text-slate-300">{children}</div>
     </div>
   );
 }
 
-export function Tip({ children }: CalloutProps) {
+export function Tip({ children, title }: CalloutProps) {
   return (
-    <div className="flex gap-3 p-4 my-5 rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-250 text-sm leading-relaxed">
-      <Sparkles className="h-5 w-5 shrink-0 text-emerald-500 mt-0.5" />
-      <div>{children}</div>
+    <div className="p-4 my-5 rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/30 dark:bg-emerald-950/10 text-slate-800 dark:text-slate-350 text-sm leading-relaxed space-y-1.5">
+      <div className="flex items-center gap-2 font-extrabold text-emerald-950 dark:text-emerald-200 select-none">
+        <Sparkles className="h-4.5 w-4.5 text-emerald-500 shrink-0" />
+        <span>{title || "Tip"}</span>
+      </div>
+      <div className="pl-6.5 text-slate-700 dark:text-slate-300">{children}</div>
     </div>
   );
 }
 
-export function Warning({ children }: CalloutProps) {
+export function Warning({ children, title }: CalloutProps) {
   return (
-    <div className="flex gap-3 p-4 my-5 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 text-sm leading-relaxed">
-      <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500 mt-0.5" />
-      <div>{children}</div>
+    <div className="p-4 my-5 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/30 dark:bg-amber-950/10 text-slate-800 dark:text-slate-350 text-sm leading-relaxed space-y-1.5">
+      <div className="flex items-center gap-2 font-extrabold text-amber-950 dark:text-amber-200 select-none">
+        <AlertTriangle className="h-4.5 w-4.5 text-amber-500 shrink-0" />
+        <span>{title || "Warning"}</span>
+      </div>
+      <div className="pl-6.5 text-slate-700 dark:text-slate-300">{children}</div>
     </div>
   );
 }
 
-export function Success({ children }: CalloutProps) {
+export function Success({ children, title }: CalloutProps) {
   return (
-    <div className="flex gap-3 p-4 my-5 rounded-xl border border-green-200 dark:border-green-900/50 bg-green-50/40 dark:bg-green-950/20 text-green-900 dark:text-green-250 text-sm leading-relaxed">
-      <CheckCircle className="h-5 w-5 shrink-0 text-green-500 mt-0.5" />
-      <div>{children}</div>
+    <div className="p-4 my-5 rounded-xl border border-green-200 dark:border-green-900/50 bg-green-50/30 dark:bg-green-950/10 text-slate-800 dark:text-slate-350 text-sm leading-relaxed space-y-1.5">
+      <div className="flex items-center gap-2 font-extrabold text-green-950 dark:text-green-200 select-none">
+        <CheckCircle className="h-4.5 w-4.5 text-green-500 shrink-0" />
+        <span>{title || "Success"}</span>
+      </div>
+      <div className="pl-6.5 text-slate-700 dark:text-slate-300">{children}</div>
     </div>
   );
 }
 
-export function Note({ children }: CalloutProps) {
+export function Note({ children, title }: CalloutProps) {
   return (
-    <div className="flex gap-3 p-4 my-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
-      <HelpCircle className="h-5 w-5 shrink-0 text-slate-500 mt-0.5" />
-      <div>{children}</div>
+    <div className="p-4 my-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-slate-750 dark:text-slate-300 text-sm leading-relaxed space-y-1.5">
+      <div className="flex items-center gap-2 font-extrabold text-slate-900 dark:text-slate-200 select-none">
+        <HelpCircle className="h-4.5 w-4.5 text-slate-500 shrink-0" />
+        <span>{title || "Note"}</span>
+      </div>
+      <div className="pl-6.5 text-slate-700 dark:text-slate-300">{children}</div>
     </div>
   );
 }
@@ -98,21 +114,38 @@ export function Quote({ children, author }: { children: React.ReactNode; author?
 // 3. UTILITY COMPONENTS (Download, CallToAction)
 // ==========================================
 
-export function Download({ title, url, description }: { title: string; url: string; description?: string }) {
+interface DownloadProps {
+  title: string;
+  url: string;
+  description?: string;
+  fileType?: string;
+  fileSize?: string;
+}
+
+export function Download({ title, url, description, fileType, fileSize }: DownloadProps) {
+  const resolvedType = fileType || url.split('.').pop()?.toUpperCase() || "ASSET";
+  const resolvedSize = fileSize || "Practice File";
+
   return (
-    <div className="p-5 my-6 rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 select-none">
-      <div className="space-y-1">
-        <h4 className="font-extrabold text-sm text-foreground leading-snug">
-          {title}
-        </h4>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          {description || "Click to download the practice workbook for this session."}
-        </p>
+    <div className="p-5 my-6 rounded-xl border border-border bg-card hover:bg-slate-50/30 dark:hover:bg-slate-900/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 select-none">
+      <div className="flex items-start gap-3.5">
+        <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20 text-primary shrink-0 text-xl leading-none">
+          📥
+        </div>
+        <div className="space-y-1">
+          <div className="text-[10px] font-bold text-primary uppercase tracking-widest leading-none">Free Download</div>
+          <h4 className="font-extrabold text-sm text-foreground leading-tight">{title}</h4>
+          <div className="flex items-center gap-2 text-xs text-slate-450 dark:text-slate-500">
+            <span>Type: {resolvedType}</span>
+            <span>•</span>
+            <span>Size: {resolvedSize}</span>
+          </div>
+        </div>
       </div>
       <a href={url} target="_blank" rel="noopener noreferrer" className="shrink-0 w-full sm:w-auto">
-        <button className="w-full sm:w-auto h-9 px-4 rounded-lg bg-primary hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-primary/20 transition-all hover:scale-101 animate-pulse">
+        <button className="w-full sm:w-auto h-9 px-4 rounded-lg bg-primary hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-primary/20 transition-all hover:scale-101">
           <DownloadIcon className="h-3.5 w-3.5" />
-          <span>Download Asset</span>
+          <span>Download</span>
         </button>
       </a>
     </div>

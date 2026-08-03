@@ -35,9 +35,9 @@ export function ReadingProgressBar() {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 h-1 bg-slate-100 dark:bg-slate-800">
+    <div className="fixed top-0 left-0 right-0 z-50 h-[3px] bg-slate-100/40 dark:bg-slate-800/40">
       <div
-        className="h-full bg-primary transition-all duration-75 ease-out"
+        className="h-full bg-gradient-to-r from-blue-600 via-blue-500 to-emerald-500 transition-all duration-75 ease-out"
         style={{ width: `${progress}%` }}
       />
     </div>
