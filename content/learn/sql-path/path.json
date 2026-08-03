@@ -1,0 +1,13 @@
+{
+  "id": "sql-path",
+  "slug": "sql-path",
+  "title": "Mastering SQL Databases",
+  "description": "Acquire job-ready database querying skills. Learn to build relational schemas, write advanced aggregation queries, join complex transactional datasets, and optimize indexes.",
+  "category": "SQL",
+  "difficulty": "Beginner",
+  "duration": "4 hours",
+  "lessons": [
+    "sql-intro",
+    "sql-select"
+  ]
+}

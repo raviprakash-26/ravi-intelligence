@@ -1,0 +1,48 @@
+---
+title: "Introduction to Relational Databases"
+difficulty: "Beginner"
+duration: "15 min"
+objectives:
+  - "Understand the concept of relational databases (RDBMS)"
+  - "Differentiate between database tables and static spreadsheet files"
+  - "Identify primary keys, foreign keys, and relational cardinality structures"
+prerequisites:
+  - "Basic computer navigation skills"
+download: "/files/sql-intro-cheatsheet.pdf"
+quiz:
+  - question: "Which key uniquely identifies a specific row inside a database table?"
+    options:
+      - "Foreign Key"
+      - "Primary Key"
+      - "Unique Index"
+      - "Relational Key"
+    correctIdx: 1
+    explanation: "A Primary Key is a unique constraint column that identifies exactly one row/record inside a database table."
+  - question: "How does a database differ from a spreadsheet?"
+    options:
+      - "Spreadsheets support indexing while databases do not."
+      - "Databases are designed for large scale relational integrity, concurrency, and transactional auditing."
+      - "Spreadsheets store data in relational primary key nodes."
+    correctIdx: 1
+    explanation: "While spreadsheets are optimized for individual cell computations, relational databases are engineered for massive transaction scales, indexing, and data constraints."
+---
+
+# Introduction to Relational Databases
+
+Welcome to your very first step in mastering SQL! In this lesson, we will uncover what a relational database is and why it forms the backbone of modern corporate finance ledgers, web applications, and analytics models.
+
+<Info title="Why Databases?">
+  Spreadsheets are great for modeling small worksheets, but once you scale to millions of order lines, relational databases are necessary to enforce data structures and run rapid indexing queries.
+</Info>
+
+### Relational Tables & Grid Sheets
+
+At its core, a relational database stores information in **tables** (similar to spreadsheets). Each table has a pre-defined **schema** outlining the columns, and holds multiple **rows** (records).
+
+Let's look at the standard structural elements:
+1. **Primary Key**: A column that uniquely identifies a row (e.g., `user_id` or `order_id`).
+2. **Foreign Key**: A column in one table referencing the Primary Key of another table, forming a connection or **relation** (e.g., `user_id` inside the `orders` table).
+
+<Tip title="Memory Shortcut">
+  Primary Keys enforce *uniqueness* within a table. Foreign Keys enforce *connections* between tables.
+</Tip>

@@ -34,34 +34,6 @@ export interface NewsItem {
   readingTime: number;
 }
 
-export interface Lesson {
-  id: string;
-  slug: string;
-  title: string;
-  duration: string;
-  content: string;
-}
-
-export interface Module {
-  id: string;
-  title: string;
-  order: number;
-  lessons: Lesson[];
-}
-
-export interface LearningPath {
-  id: string;
-  slug: string;
-  title: string;
-  description: string;
-  difficulty: Difficulty;
-  duration: string;
-  lessonsCount: number;
-  coverImage: string;
-  tags: string[];
-  modules: Module[];
-}
-
 export interface Resource {
   id: string;
   slug: string;
@@ -105,3 +77,4 @@ export * from "./author";
 export * from "./category";
 export * from "./article";
 export * from "./resource";
+export * from "./learn";

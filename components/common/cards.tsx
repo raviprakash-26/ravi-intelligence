@@ -332,43 +332,28 @@ export function RoadmapCard({ path }: { path: LearningPath }) {
   };
 
   return (
-    <Card hoverEffect className="group flex flex-col h-full bg-card justify-between overflow-hidden">
-      <div className="aspect-[21/9] overflow-hidden relative border-b border-border">
-        <img
-          src={path.coverImage}
-          alt={path.title}
-          className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
-          loading="lazy"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-white">
-          <Badge variant={getDiffColor(path.difficulty)} className="font-bold border-transparent">
-            {path.difficulty}
-          </Badge>
-          <span className="text-xs font-mono font-semibold">{path.duration}</span>
-        </div>
-      </div>
-
-      <CardContent className="p-6 flex-1 flex flex-col justify-between">
+    <Card hoverEffect className="group flex flex-col h-full bg-card justify-between overflow-hidden p-5">
+      <CardContent className="p-0 flex-grow flex flex-col justify-between h-full space-y-4">
         <div className="space-y-3">
-          <h4 className="text-lg font-bold leading-snug group-hover:text-primary transition-colors text-foreground">
+          <div className="flex items-center justify-between">
+            <Badge variant={getDiffColor(path.difficulty)} className="font-bold border-transparent select-none">
+              {path.difficulty}
+            </Badge>
+            <span className="text-[10px] font-bold text-slate-400 uppercase select-none">{path.duration}</span>
+          </div>
+          <h4 className="text-base font-bold leading-snug group-hover:text-primary transition-colors text-foreground">
             {path.title}
           </h4>
-          <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+          <p className="text-xs text-slate-500 dark:text-slate-450 leading-relaxed line-clamp-3">
             {path.description}
           </p>
-
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 pt-2 border-t border-border/20">
-            <BookOpen className="h-4 w-4 text-primary shrink-0" />
-            <span>Syllabus: {path.modules.length} Modules ({path.lessonsCount} lessons)</span>
-          </div>
         </div>
 
-        <div className="mt-6">
-          <Link href={`/learn/${path.slug}`}>
-            <Button variant="primary" className="w-full font-bold h-10 text-sm">
-              Start Roadmap
-              <ArrowRight className="h-4 w-4 ml-1.5" />
+        <div className="pt-4 border-t border-border/40 select-none">
+          <Link href={`/learn/${path.slug}`} className="block">
+            <Button variant="primary" className="w-full font-bold h-9 text-xs cursor-pointer">
+              Start Learning Path
+              <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
             </Button>
           </Link>
         </div>

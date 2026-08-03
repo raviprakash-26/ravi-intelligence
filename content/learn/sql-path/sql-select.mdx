@@ -1,0 +1,47 @@
+---
+title: "Writing Your First SELECT Query"
+difficulty: "Beginner"
+duration: "20 min"
+objectives:
+  - "Understand the basic SELECT and FROM query structure"
+  - "Learn to filter column fields from tables"
+  - "Execute raw queries in databases"
+prerequisites:
+  - "Introduction to Relational Databases (Lesson 1)"
+download: "/files/sql-select-queries.sql"
+quiz:
+  - question: "Which SQL keyword is used to specify the columns you want to extract?"
+    options:
+      - "GET"
+      - "FROM"
+      - "SELECT"
+      - "WHERE"
+    correctIdx: 2
+    explanation: "The SELECT keyword tells the database engine exactly which fields/columns to retrieve from the target table."
+---
+
+# Writing Your First SELECT Query
+
+Now that you understand relational tables, it is time to write code! Structured Query Language (SQL) is the standard query syntax used to request datasets from databases.
+
+### The SELECT Statement
+
+The most common database command is requesting columns from a table. We do this using the `SELECT` and `FROM` keywords.
+
+Here is the basic syntax:
+
+```sql filename="SELECT Query Syntax"
+SELECT column_name_1, column_name_2
+FROM table_name;
+```
+
+If you want to retrieve all columns from a table, you can use the asterisk symbol (`*`) as a wildcard:
+
+```sql filename="Wildcard Query"
+SELECT *
+FROM users;
+```
+
+<Warning title="Wildcard Warning">
+  While `SELECT *` is helpful during database debugging, avoid using it in production systems. Specifying exact columns reduces network traffic and speeds up indexing speeds.
+</Warning>
