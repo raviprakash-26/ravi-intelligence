@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Search, Sparkles, ShoppingBag, FileText, BookOpen, Terminal, X, CornerDownLeft, Sparkle } from "lucide-react";
+import { Search, Sparkles, ShoppingBag, FileText, BookOpen, Terminal, X, CornerDownLeft, Sparkle, History, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SearchItem {
@@ -13,6 +13,8 @@ interface SearchItem {
   category: string;
 }
 
+const POPULAR_SEARCHES = ["SQL", "Excel", "Power BI", "Python", "Prompts"];
+
 export function SearchPalette() {
   const router = useRouter();
   const [isOpen, setIsOpen] = React.useState(false);
@@ -21,6 +23,7 @@ export function SearchPalette() {
   const [results, setResults] = React.useState<SearchItem[]>([]);
   const [activeIdx, setActiveIdx] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
+  const [recentSearches, setRecentSearches] = React.useState<string[]>([]);
 
   const inputRef = React.useRef<HTMLInputElement>(null);
   const listRef = React.useRef<HTMLDivElement>(null);
@@ -29,7 +32,6 @@ export function SearchPalette() {
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || e.key === "/") {
-        // Prevent default browser search behavior or scroll page
         if (e.key === "/" && (e.target as HTMLElement).tagName === "INPUT") return;
         e.preventDefault();
         setIsOpen((prev) => !prev);
@@ -39,11 +41,17 @@ export function SearchPalette() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // 2. Load search index when modal is opened (lazy fetch)
+  // 2. Load recent searches & index
   React.useEffect(() => {
     if (!isOpen) return;
 
-    // Prefetch search index
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("ravi-intelligence-recent-searches");
+      if (saved) {
+        setRecentSearches(JSON.parse(saved));
+      }
+    }
+
     const fetchSearchIndex = async () => {
       setLoading(true);
       try {
@@ -62,7 +70,6 @@ export function SearchPalette() {
     fetchSearchIndex();
     setSearchQuery("");
     setActiveIdx(0);
-    // Focus input after modal renders
     setTimeout(() => inputRef.current?.focus(), 80);
   }, [isOpen]);
 
@@ -83,11 +90,25 @@ export function SearchPalette() {
       );
     });
 
-    setResults(matches.slice(0, 7)); // Cap at 7 results for visual cleanliness
+    setResults(matches.slice(0, 7));
     setActiveIdx(0);
   }, [searchQuery, index]);
 
-  // 4. Keyboard selection handling
+  const addRecentSearch = (query: string) => {
+    if (!query.trim()) return;
+    const updated = [query, ...recentSearches.filter((s) => s !== query)].slice(0, 5);
+    setRecentSearches(updated);
+    localStorage.setItem("ravi-intelligence-recent-searches", JSON.stringify(updated));
+  };
+
+  const handleNavigate = (url: string) => {
+    if (searchQuery.trim()) {
+      addRecentSearch(searchQuery.trim());
+    }
+    setIsOpen(false);
+    router.push(url);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       setIsOpen(false);
@@ -105,11 +126,6 @@ export function SearchPalette() {
     }
   };
 
-  const handleNavigate = (url: string) => {
-    setIsOpen(false);
-    router.push(url);
-  };
-
   // Scroll active item into view
   React.useEffect(() => {
     if (listRef.current) {
@@ -119,8 +135,6 @@ export function SearchPalette() {
       }
     }
   }, [activeIdx]);
-
-  if (!isOpen) return null;
 
   const getTypeIcon = (type: string) => {
     switch (type.toLowerCase()) {
@@ -146,7 +160,7 @@ export function SearchPalette() {
       onClick={() => setIsOpen(false)}
     >
       <div
-        className="w-full max-w-xl bg-card border border-border rounded-2xl overflow-hidden shadow-2xl flex flex-col transition-all transform scale-100"
+        className="w-full max-w-xl bg-card border border-border rounded-2xl overflow-hidden shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
@@ -176,26 +190,58 @@ export function SearchPalette() {
               Scanning directories search index...
             </div>
           ) : searchQuery.trim() === "" ? (
-            <div className="py-8 px-4 text-center space-y-2">
-              <Terminal className="h-7 w-7 text-slate-400 mx-auto opacity-70" />
-              <p className="text-xs font-semibold text-slate-550 dark:text-slate-400">
-                Fuzzy search anything on Ravi Intelligence.
-              </p>
-              <div className="flex justify-center gap-4 text-[10px] text-slate-400 font-bold uppercase pt-1">
-                <span>Articles</span>
-                <span>•</span>
-                <span>Lessons</span>
-                <span>•</span>
-                <span>Resources</span>
-                <span>•</span>
-                <span>Prompts</span>
+            <div className="py-6 px-4 space-y-6">
+              
+              {/* Recent searches history */}
+              {recentSearches.length > 0 && (
+                <div className="space-y-2 text-left">
+                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 leading-none select-none">
+                    <History className="h-3.5 w-3.5" /> Recent Searches
+                  </h5>
+                  <div className="flex flex-wrap gap-2 pt-1.5">
+                    {recentSearches.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => {
+                          setSearchQuery(s);
+                          inputRef.current?.focus();
+                        }}
+                        className="px-2.5 py-1 text-[11px] font-bold border border-border bg-card rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 cursor-pointer text-slate-655 dark:text-slate-350 transition-colors"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Popular searches tags */}
+              <div className="space-y-2 text-left">
+                <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 leading-none select-none">
+                  <Flame className="h-3.5 w-3.5 text-amber-550 animate-pulse" /> Trending Subjects
+                </h5>
+                <div className="flex flex-wrap gap-2 pt-1.5">
+                  {POPULAR_SEARCHES.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => {
+                        setSearchQuery(s);
+                        inputRef.current?.focus();
+                      }}
+                      className="px-2.5 py-1 text-[11px] font-bold border border-border bg-card rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 cursor-pointer text-slate-655 dark:text-slate-350 transition-colors"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
+
             </div>
           ) : results.length === 0 ? (
             <div className="py-8 px-4 text-center space-y-1.5">
               <Sparkle className="h-6 w-6 text-slate-450 mx-auto" />
               <p className="text-xs font-bold text-foreground">No matches found</p>
-              <p className="text-[10px] text-slate-500">Try searching for subjects like &quot;SQL&quot; or &quot;Excel&quot;.</p>
+              <p className="text-[10px] text-slate-550">Try searching for subjects like &quot;SQL&quot; or &quot;Excel&quot;.</p>
             </div>
           ) : (
             <div ref={listRef} className="space-y-1">
@@ -218,16 +264,16 @@ export function SearchPalette() {
                         <h4 className="font-extrabold text-xs sm:text-sm text-foreground leading-snug">
                           {item.title}
                         </h4>
-                        <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide select-none shrink-0">
+                        <span className="text-[9px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-wide select-none shrink-0 font-mono">
                           {item.type}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 leading-normal">
+                      <p className="text-[11px] text-slate-555 dark:text-slate-400 line-clamp-1 leading-normal">
                         {item.description}
                       </p>
                     </div>
                     {isActive && (
-                      <div className="self-center text-[10px] font-bold text-slate-400 flex items-center gap-0.5 select-none shrink-0 animate-fade-in pr-1">
+                      <div className="self-center text-[10px] font-bold text-slate-400 flex items-center gap-0.5 select-none shrink-0 pr-1">
                         <span className="text-[8px] border border-slate-350 dark:border-slate-700 px-1 py-0.2 rounded font-mono">Enter</span>
                         <CornerDownLeft className="h-3 w-3" />
                       </div>

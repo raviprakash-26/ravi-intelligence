@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { ShieldCheck, LayoutDashboard, FileText, ShoppingBag, Sparkles, LogOut } from "lucide-react";
+import { ShieldCheck, LayoutDashboard, FileText, ShoppingBag, Sparkles, LogOut, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CmsLayoutProps {
@@ -47,6 +47,7 @@ export function CmsLayout({ children }: CmsLayoutProps) {
     { name: "Articles", href: "/admin/articles", icon: <FileText className="h-4.5 w-4.5" /> },
     { name: "Resources", href: "/admin/resources", icon: <ShoppingBag className="h-4.5 w-4.5" /> },
     { name: "Prompts", href: "/admin/prompts", icon: <Sparkles className="h-4.5 w-4.5" /> },
+    { name: "SEO & Growth", href: "/admin/growth", icon: <TrendingUp className="h-4.5 w-4.5" /> },
   ];
 
   return (

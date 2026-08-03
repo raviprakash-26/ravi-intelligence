@@ -242,9 +242,10 @@ export function DownloadCard({ resource }: { resource: ResourceItem }) {
   const [isPurchasing, setIsPurchasing] = React.useState(false);
   const [purchaseComplete, setPurchaseComplete] = React.useState(false);
   const [checkoutEmail, setCheckoutEmail] = React.useState("");
+  const [freeEmail, setFreeEmail] = React.useState("");
+  const [showFreeCollector, setShowFreeCollector] = React.useState(false);
 
   const handleDownload = () => {
-    // Simulate downloading files
     const link = document.createElement("a");
     link.href = "#";
     link.setAttribute("download", `${resource.slug}-${resource.version}.zip`);
@@ -254,12 +255,39 @@ export function DownloadCard({ resource }: { resource: ResourceItem }) {
     alert(`📥 Thank you! Your free download of "${resource.title}" has started.`);
   };
 
+  const handleFreeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!freeEmail || !freeEmail.includes("@")) return;
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("ravi-intelligence-lead-email", freeEmail);
+      
+      const logged = localStorage.getItem("ravi-intelligence-leads-log") || "[]";
+      try {
+        const parsed = JSON.parse(logged);
+        parsed.push({ email: freeEmail, slug: resource.slug, date: new Date().toISOString() });
+        localStorage.setItem("ravi-intelligence-leads-log", JSON.stringify(parsed));
+      } catch (err) {}
+    }
+
+    setShowFreeCollector(false);
+    handleDownload();
+  };
+
+  const handleFreeDownloadTrigger = () => {
+    const storedEmail = typeof window !== "undefined" ? localStorage.getItem("ravi-intelligence-lead-email") : null;
+    if (storedEmail) {
+      handleDownload();
+    } else {
+      setShowFreeCollector(true);
+    }
+  };
+
   const handleCheckoutSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!checkoutEmail) return;
 
     setIsPurchasing(true);
-    // Simulate transaction delay
     setTimeout(() => {
       setIsPurchasing(false);
       setPurchaseComplete(true);
@@ -303,13 +331,36 @@ export function DownloadCard({ resource }: { resource: ResourceItem }) {
 
       {/* Dynamic CTA trigger area */}
       {resource.free ? (
-        <Button
-          onClick={handleDownload}
-          className="w-full font-bold h-11 bg-primary hover:bg-blue-700 text-white flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-primary/20 transition-all hover:scale-101"
-        >
-          <Download className="h-4 w-4" />
-          <span>Download Now</span>
-        </Button>
+        showFreeCollector ? (
+          <form onSubmit={handleFreeSubmit} className="space-y-3.5 border border-primary/20 bg-primary/5 p-4 rounded-xl">
+            <div className="space-y-1">
+              <label className="text-[9px] font-extrabold text-slate-450 uppercase tracking-wider block">Unlock Free File Access</label>
+              <input
+                type="email"
+                required
+                placeholder="Enter email to subscribe & unlock"
+                value={freeEmail}
+                onChange={(e) => setFreeEmail(e.target.value)}
+                className="w-full h-8.5 px-2 bg-background border border-border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full font-bold h-9 bg-primary hover:bg-blue-700 text-white flex items-center justify-center gap-1.5 cursor-pointer text-xs"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Unlock & Download</span>
+            </Button>
+          </form>
+        ) : (
+          <Button
+            onClick={handleFreeDownloadTrigger}
+            className="w-full font-bold h-11 bg-primary hover:bg-blue-700 text-white flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-primary/20 transition-all hover:scale-101"
+          >
+            <Download className="h-4 w-4" />
+            <span>Download Now</span>
+          </Button>
+        )
       ) : (
         <div className="space-y-4">
           {!purchaseComplete ? (
