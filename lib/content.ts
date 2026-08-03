@@ -100,6 +100,17 @@ export async function getAllArticles(): Promise<MdxArticle[]> {
       readingTime: data.readingTime || readTime,
       featured: data.featured === true || data.featured === "true",
       editorPick: data.editorPick === true || data.editorPick === "true",
+      lastUpdated: data.lastUpdated
+        ? (data.lastUpdated instanceof Date
+            ? data.lastUpdated.toISOString().split("T")[0]
+            : String(data.lastUpdated))
+        : data.publishedAt
+          ? (data.publishedAt instanceof Date
+              ? data.publishedAt.toISOString().split("T")[0]
+              : String(data.publishedAt))
+          : new Date().toISOString().split("T")[0],
+      difficulty: data.difficulty || "Beginner",
+      download: data.download || "",
     } as MdxArticle;
   });
 

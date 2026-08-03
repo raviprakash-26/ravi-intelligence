@@ -10,6 +10,9 @@ export interface MdxArticle {
   category: string;
   tags: string[];
   publishedAt: string;
+  lastUpdated?: string;
+  difficulty?: "Beginner" | "Intermediate" | "Advanced" | "Easy" | "Medium" | "Hard";
+  download?: string;
   author: Author;
   readingTime: number;
   featured?: boolean;
