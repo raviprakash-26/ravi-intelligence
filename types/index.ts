@@ -100,3 +100,7 @@ export interface PromptItem {
   difficulty: Difficulty;
   tags: string[];
 }
+
+export * from "./author";
+export * from "./category";
+export * from "./article";
