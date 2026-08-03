@@ -104,3 +104,4 @@ export interface PromptItem {
 export * from "./author";
 export * from "./category";
 export * from "./article";
+export * from "./resource";

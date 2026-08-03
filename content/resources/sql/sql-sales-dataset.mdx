@@ -1,0 +1,50 @@
+---
+title: "SQL E-Commerce Sales Practice Database"
+slug: "sql-sales-dataset"
+excerpt: "A mock database schema containing 50,000+ orders to practice window queries, partitioning, and indexing."
+category: "SQL"
+tags:
+  - SQL
+  - Database
+  - Datasets
+author: "Ravi Prakash"
+publishedAt: "2026-08-03"
+updatedAt: "2026-08-03"
+difficulty: "Advanced"
+free: true
+price: 0
+fileSize: "14.5 MB"
+fileType: "SQL / DDL"
+version: "1.0.0"
+downloadsCount: 1420
+cover: "https://images.unsplash.com/photo-1544383835-bda2bc66a55d?q=80&w=800"
+previewImages:
+  - "https://images.unsplash.com/photo-1544383835-bda2bc66a55d?q=80&w=800"
+features:
+  - "Normalized database schema containing 4 relational tables (Users, Orders, Items, Categories)."
+  - "Pre-populated with 50,000+ transaction lines spanning 2 years."
+  - "Perfect for executing SQL window partition operations and multi-join indexes."
+whatsIncluded:
+  - "PostgreSQL schema script (.sql)"
+  - "MySQL schema script (.sql)"
+  - "Documentation mapping user stories"
+requirements:
+  - "Any SQL Server database engine (PostgreSQL, MySQL, SQLite, or SQL Server)"
+  - "DBVisualizer, DBeaver, or pgAdmin client recommended"
+---
+
+# SQL E-Commerce Sales Practice Database
+
+If you are preparing for data analyst interviews or upgrading your SQL querying speed, practicing on small, static datasets will not prepare you for production environments. This database is normalized, indexed, and pre-populated with transactional records to test your optimization queries.
+
+<Info title="Database Scripts">
+  This free download contains both PostgreSQL and MySQL compatible schema creation scripts, including indexing configurations to test performance gaps.
+</Info>
+
+### Relational Schema Diagram
+
+The database consists of 4 main relational tables:
+- **`users`**: Contains demographic details, signup events, and user tiers.
+- **`orders`**: Transaction records with status, checkout totals, and timestamps.
+- **`items`**: Item catalogs, price ledgers, and category references.
+- **`order_items`**: Relational bridge containing item quantities and line totals.
