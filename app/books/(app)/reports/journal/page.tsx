@@ -33,6 +33,7 @@ const VOUCHER_LABELS: Record<VoucherType, string> = {
   CONTRA: "Contra",
   JOURNAL: "Journal",
   OPENING: "Opening",
+  CLOSING: "Year-end close",
 };
 
 export default async function JournalPage() {

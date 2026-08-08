@@ -27,6 +27,48 @@ From a single validated journal, the system derives:
 | Income tax planner | `/books/tax` |
 | Revenue forecast | `/books/forecast` |
 
+The year-end close, which carries a finished year's profit into capital, is at
+`/books/settings` and is described below.
+
+## The year-end close
+
+Income and expense accounts measure one year and mean nothing carried forward,
+so at year end they are emptied into Retained Earnings (3030). The owner does
+this from Settings → Year end, and it posts one ordinary balanced entry, dated
+the last day of the year, with voucher type `CLOSING`:
+
+- every income and expense account is zeroed;
+- the Stock account is moved from the opening figure it still carries under
+  periodic inventory to the counted closing figure, which is also what makes
+  next year's opening stock right;
+- the balance — the year's profit — goes to Retained Earnings.
+
+**This is not optional bookkeeping ceremony.** Until a year is closed, its
+profit sits in accounts no statement of position reports, while the cash and
+stock that profit produced sit on the Balance Sheet in plain view. The sheet is
+then out by exactly the year's profit, and no entry the shopkeeper can make will
+square it. `__tests__/accounting-engine.test.ts` pins both halves of that: the
+unclosed second year is out by precisely the first year's profit, and the closed
+one balances.
+
+Two things follow from the closing entry being a real entry in the ledger:
+
+- Statements of **activity** — Trading, P&L, Income & Expenditure — ignore
+  closing entries inside their window. Counted, they would net every figure to
+  nil and a closed year would report no sales and no profit.
+- Statements of **position** — the Balance Sheet — count it, but back the year's
+  own close out of opening capital, because `netProfit` is added separately.
+  Counted in both places, closing a year would appear to double its profit.
+
+Closing is reversible: Settings → Year end offers to reopen, which deletes the
+closing entry. A shopkeeper who finds a missed bill in March needs a way back
+in, and the alternative — correcting it in the following year — misstates both.
+
+A year whose books do not balance cannot be closed. The usual cause is an
+opening stock entered in Settings but never posted to the ledger, which the
+Balance Sheet already reports; closing over it would bury the difference in
+Retained Earnings where it is much harder to find.
+
 ## Running it
 
 Two environment variables:

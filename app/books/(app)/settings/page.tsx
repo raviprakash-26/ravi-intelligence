@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   FinancialYearForm,
   StoreSettingsForm,
+  YearEndForm,
 } from "@/components/books/settings-forms";
 import {
   Amount,
@@ -16,8 +17,11 @@ import {
   Td,
   Th,
 } from "@/components/books/ui";
+import { isPeriodClosed } from "@/lib/accounting/close";
+import { formatPaise } from "@/lib/accounting/money";
 import { recentFinancialYears } from "@/lib/accounting/period";
-import { getBooksContext } from "@/lib/auth/dal";
+import { buildFinancialStatements } from "@/lib/accounting/statements";
+import { getAllEntries, getBooksContext } from "@/lib/auth/dal";
 import { listAccounts } from "@/lib/db/repository";
 
 export const metadata: Metadata = {
@@ -27,6 +31,17 @@ export const metadata: Metadata = {
 export default async function SettingsPage() {
   const context = await getBooksContext();
   const accounts = listAccounts(context.tenant.id);
+
+  // Full history, so the profit quoted on the close control is the same figure
+  // the P&L reports rather than one derived from a narrower slice.
+  const entries = await getAllEntries();
+  const closed = isPeriodClosed(entries, context.range);
+  const { profitAndLoss } = buildFinancialStatements(
+    accounts,
+    entries,
+    context.range,
+    context.adjustments
+  );
 
   return (
     <>
@@ -62,6 +77,22 @@ export default async function SettingsPage() {
         <FinancialYearForm
           current={context.financialYear}
           options={recentFinancialYears(5)}
+        />
+      </Panel>
+
+      <Panel
+        title="Year end"
+        description={
+          closed
+            ? `${context.financialYear} has been closed.`
+            : `Close ${context.financialYear} once every entry for the year is in.`
+        }
+      >
+        <YearEndForm
+          financialYear={context.financialYear}
+          isClosed={closed}
+          netProfit={formatPaise(profitAndLoss.netProfit)}
+          canEdit={context.user.role === "OWNER"}
         />
       </Panel>
 

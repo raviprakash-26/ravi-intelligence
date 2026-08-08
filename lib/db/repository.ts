@@ -461,6 +461,7 @@ const VOUCHER_PREFIX: Record<VoucherType, string> = {
   CONTRA: "CN",
   JOURNAL: "JV",
   OPENING: "OP",
+  CLOSING: "CL",
 };
 
 /**

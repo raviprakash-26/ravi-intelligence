@@ -84,7 +84,14 @@ export type VoucherType =
   | "PAYMENT"
   | "CONTRA"
   | "JOURNAL"
-  | "OPENING";
+  | "OPENING"
+  /**
+   * The year-end close. Zeroes the nominal accounts into Retained Earnings so
+   * the next year starts clean. Statements of *activity* ignore it — a closed
+   * year must still report the profit it earned — while statements of
+   * *position* count it, which is the whole point of posting it.
+   */
+  | "CLOSING";
 
 export interface JournalEntry {
   id: string;

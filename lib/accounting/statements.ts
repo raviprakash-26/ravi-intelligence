@@ -1,4 +1,5 @@
 import { CASH_AND_BANK_CODES, SYSTEM_ACCOUNTS } from "./chart-of-accounts";
+import { retainedEarningsMovement, withoutClosingEntries } from "./close";
 import { computeBalances } from "./ledger";
 import { addPaise, subtractPaise, type Paise } from "./money";
 import type {
@@ -21,7 +22,11 @@ function periodActivity(
   entries: JournalEntry[],
   range: DateRange
 ): Map<string, Paise> {
-  const windowed = entries.filter(
+  // The year's own closing entry is excluded deliberately. It exists to empty
+  // these very accounts, so counting it here would net every figure to nil and
+  // a closed year would report no sales, no expenses and no profit — the books
+  // would appear to erase themselves the moment they were put away.
+  const windowed = withoutClosingEntries(entries, range).filter(
     (entry) => entry.date >= range.from && entry.date <= range.to
   );
   return computeBalances(accounts, windowed);
@@ -248,10 +253,11 @@ export interface BalanceSheet {
 export function buildBalanceSheet(
   accounts: Account[],
   entries: JournalEntry[],
-  asOf: string,
+  range: DateRange,
   adjustments: PeriodAdjustments,
   netProfit: Paise
 ): BalanceSheet {
+  const asOf = range.to;
   const balances = computeBalances(accounts, entries, asOf);
 
   const fixedAssets = linesForGroup(
@@ -290,9 +296,26 @@ export function buildBalanceSheet(
   const totalCurrentAssets = sumLines(currentAssets);
   const totalAssets = addPaise(netFixedAssets, totalCurrentAssets);
 
+  // Retained Earnings brought in from *earlier* years only. Once this year has
+  // been closed the account already holds its profit, and netProfit is added
+  // again just below — so the year's own closing entry is backed out here.
+  // Without that, closing a year would appear to double the profit it made, and
+  // the sheet would stop balancing at the moment it was put away.
+  const retainedFromPriorYears = subtractPaise(
+    balanceOf(balances, SYSTEM_ACCOUNTS.retainedEarnings),
+    retainedEarningsMovement(
+      entries.filter(
+        (entry) =>
+          entry.voucherType === "CLOSING" &&
+          entry.date >= range.from &&
+          entry.date <= asOf
+      )
+    )
+  );
+
   const openingCapital = addPaise(
     balanceOf(balances, SYSTEM_ACCOUNTS.capital),
-    balanceOf(balances, SYSTEM_ACCOUNTS.retainedEarnings)
+    retainedFromPriorYears
   );
   const drawings = balanceOf(balances, SYSTEM_ACCOUNTS.drawings);
   const closingCapital = subtractPaise(
@@ -588,7 +611,7 @@ export function buildFinancialStatements(
   const balanceSheet = buildBalanceSheet(
     accounts,
     entries,
-    range.to,
+    range,
     adjustments,
     profitAndLoss.netProfit
   );

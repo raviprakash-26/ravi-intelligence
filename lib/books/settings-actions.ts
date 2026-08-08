@@ -3,8 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { buildClosingPlan, findClosingEntry } from "@/lib/accounting/close";
 import { validateGstin } from "@/lib/accounting/gst";
+import { formatPaise } from "@/lib/accounting/money";
 import { financialYearRange, startYearOf } from "@/lib/accounting/period";
+import { buildFinancialStatements } from "@/lib/accounting/statements";
 import { assertCanWrite, getBooksContext } from "@/lib/auth/dal";
 import { PLANS } from "@/lib/billing/plans";
 import * as repository from "@/lib/db/repository";
@@ -154,6 +157,132 @@ export async function switchFinancialYear(
 
   revalidatePath("/books", "layout");
   return { ok: true, message: `Now working on ${label}.` };
+}
+
+/**
+ * Closes the working year.
+ *
+ * Empties the nominal accounts into Retained Earnings so the year's profit
+ * becomes part of what the owner has in the business, and the next year opens
+ * on a clean slate. Until this is done the profit of a finished year is
+ * stranded in accounts the Balance Sheet does not report, while the cash it
+ * produced sits there in plain sight — so the sheet is out by exactly that
+ * profit and nothing the shopkeeper enters will square it.
+ */
+export async function closeFinancialYear(
+  _previous: SettingsFormState,
+  _formData: FormData
+): Promise<SettingsFormState> {
+  const context = await getBooksContext();
+
+  if (context.user.role !== "OWNER") {
+    return { error: "Only the store owner can close the year." };
+  }
+
+  const permission = await assertCanWrite();
+  if (!permission.ok) {
+    return { error: permission.message };
+  }
+
+  const entries = repository.listJournalEntries(context.tenant.id);
+
+  // The profit transferred is the one the statements report, taken from them
+  // rather than recomputed, so the two can never drift apart.
+  const statements = buildFinancialStatements(
+    context.accounts,
+    entries,
+    context.range,
+    context.adjustments
+  );
+
+  const result = buildClosingPlan({
+    accounts: context.accounts,
+    entries,
+    range: context.range,
+    adjustments: context.adjustments,
+    netProfit: statements.profitAndLoss.netProfit,
+  });
+
+  if (!result.ok) {
+    return { error: result.reason };
+  }
+
+  const entry = repository.createJournalEntry({
+    tenantId: context.tenant.id,
+    date: context.range.to,
+    voucherType: "CLOSING",
+    narration: `Year-end close for ${context.financialYear}`,
+    lines: result.plan.lines,
+    createdBy: context.user.id,
+  });
+
+  repository.appendAudit({
+    tenantId: context.tenant.id,
+    userId: context.user.id,
+    action: "YEAR_CLOSED",
+    entity: "journal_entry",
+    entityId: entry.id,
+    detail: {
+      financialYear: context.financialYear,
+      netProfit: result.plan.netProfit,
+      accountsClosed: result.plan.accountsClosed,
+    },
+  });
+
+  revalidatePath("/books", "layout");
+  return {
+    ok: true,
+    message: `${context.financialYear} is closed. ${formatPaise(
+      result.plan.netProfit
+    )} has been transferred to retained earnings.`,
+  };
+}
+
+/**
+ * Reopens the working year by deleting its closing entry.
+ *
+ * A shopkeeper who finds a missed bill after closing needs a way back in, and
+ * the alternative — a correcting entry in the following year — misstates both
+ * years. Closing again afterwards is cheap, so this is deliberately reversible.
+ */
+export async function reopenFinancialYear(
+  _previous: SettingsFormState,
+  _formData: FormData
+): Promise<SettingsFormState> {
+  const context = await getBooksContext();
+
+  if (context.user.role !== "OWNER") {
+    return { error: "Only the store owner can reopen the year." };
+  }
+
+  const permission = await assertCanWrite();
+  if (!permission.ok) {
+    return { error: permission.message };
+  }
+
+  const entries = repository.listJournalEntries(context.tenant.id);
+  const closing = findClosingEntry(entries, context.range);
+
+  if (!closing) {
+    return { error: `${context.financialYear} is not closed.` };
+  }
+
+  repository.deleteJournalEntry(context.tenant.id, closing.id);
+
+  repository.appendAudit({
+    tenantId: context.tenant.id,
+    userId: context.user.id,
+    action: "YEAR_REOPENED",
+    entity: "journal_entry",
+    entityId: closing.id,
+    detail: { financialYear: context.financialYear },
+  });
+
+  revalidatePath("/books", "layout");
+  return {
+    ok: true,
+    message: `${context.financialYear} is open again. Close it once your corrections are in.`,
+  };
 }
 
 /**

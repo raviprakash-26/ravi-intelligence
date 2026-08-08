@@ -37,6 +37,7 @@ const VOUCHER_STYLE: Record<
   CONTRA: { label: "Contra", tone: "neutral" },
   JOURNAL: { label: "Journal", tone: "neutral" },
   OPENING: { label: "Opening", tone: "neutral" },
+  CLOSING: { label: "Year-end close", tone: "blue" },
 };
 
 export default async function TransactionsPage() {

@@ -381,4 +381,55 @@ test.describe("books", () => {
     await firstContext.close();
     await secondContext.close();
   });
+
+  test("closing the year moves profit into capital and can be undone", async ({
+    page,
+  }) => {
+    await registerStore(page, "Year End Stores");
+
+    // Buy for 40,000, sell for 60,000, all in cash. With no closing stock
+    // counted, the year's profit is 20,000.
+    await recordTransaction(page, {
+      kind: "Purchase",
+      amount: "40000",
+      paymentMode: "Cash",
+    });
+    await recordTransaction(page, {
+      kind: "Sale",
+      amount: "60000",
+      paymentMode: "Cash",
+    });
+
+    await page.goto("/books/settings");
+    await expect(page.getByText(/Close .* once every entry/i)).toBeVisible();
+
+    await page.getByRole("button", { name: /^Close \d{4}-\d{2}$/ }).click();
+    await expect(page.getByRole("status")).toContainText(
+      /transferred to retained earnings/i,
+      { timeout: 15000 }
+    );
+
+    // The close is an ordinary entry and shows up as one.
+    await page.goto("/books/reports/journal");
+    await expect(page.getByText("Year-end close").first()).toBeVisible();
+
+    // The year still reports the profit it earned — the close must not erase
+    // the very figures it was posted to carry forward.
+    await page.goto("/books/reports/profit-loss");
+    await expect(page.getByText("20,000.00").first()).toBeVisible();
+
+    // And the sheet still ties, with the profit now sitting in capital rather
+    // than being counted twice.
+    await page.goto("/books/reports/balance-sheet");
+    await expect(page.getByText(/does not balance/i)).toHaveCount(0);
+
+    // Reopening puts it back, so a missed bill can still be recorded.
+    await page.goto("/books/settings");
+    await page.getByRole("button", { name: /^Reopen \d{4}-\d{2}$/ }).click();
+    await expect(page.getByRole("status")).toContainText(/open again/i, {
+      timeout: 15000,
+    });
+    await expect(page.getByText(/Close .* once every entry/i)).toBeVisible();
+  });
+
 });

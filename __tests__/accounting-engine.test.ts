@@ -27,6 +27,10 @@ import {
   type Voucher,
 } from "@/lib/accounting/journal";
 import {
+  buildClosingPlan,
+  isPeriodClosed,
+} from "@/lib/accounting/close";
+import {
   buildLedgerAccount,
   buildTrialBalance,
   computeBalances,
@@ -40,7 +44,7 @@ import {
   computePresumptiveIncome,
 } from "@/lib/accounting/tax";
 import { fitTrend, forecastRevenue, monthlyNetSales } from "@/lib/accounting/forecast";
-import type { JournalEntry } from "@/lib/accounting/types";
+import type { DateRange, JournalEntry, JournalLine } from "@/lib/accounting/types";
 
 const accounts = DEFAULT_CHART_OF_ACCOUNTS;
 const accountIndex = buildAccountIndex(accounts);
@@ -898,5 +902,213 @@ describe("revenue forecasting", () => {
       "2025-01", "2025-02", "2025-03", "2025-04",
     ]);
     expect(forecast.history[1].netSales).toBe(0);
+  });
+});
+
+/* ================================================================== */
+/* Year-end close                                                      */
+/* ================================================================== */
+
+describe("year-end close", () => {
+  const YEAR_ONE = { from: "2025-04-01", to: "2026-03-31" };
+  const YEAR_TWO = { from: "2026-04-01", to: "2027-03-31" };
+
+  // Stock counted at each year end. Year two opens on what year one closed
+  // with, which is what switchFinancialYear carries across in the application.
+  const YEAR_ONE_ADJ = { openingStock: 0, closingStock: R(10000) };
+  const YEAR_TWO_ADJ = { openingStock: R(10000), closingStock: R(10000) };
+
+  /** A simple, fully cash-settled first year: capital in, buy, sell. */
+  function firstYear(): JournalEntry[] {
+    return [
+      post({
+        kind: "CAPITAL",
+        date: "2025-04-01",
+        amount: R(100000),
+        action: "INTRODUCE",
+        through: "CASH",
+      }),
+      post({
+        kind: "PURCHASE",
+        date: "2025-05-01",
+        amount: R(40000),
+        paymentMode: "CASH",
+      }),
+      post({
+        kind: "SALE",
+        date: "2025-06-01",
+        amount: R(60000),
+        paymentMode: "CASH",
+      }),
+    ];
+  }
+
+  /** Turns a plan into a posted entry, the way the server action does. */
+  function postClosing(plan: { lines: JournalLine[] }, range: DateRange): JournalEntry {
+    sequence += 1;
+    return {
+      id: `close${sequence}`,
+      voucherNo: `CL-${String(sequence).padStart(4, "0")}`,
+      date: range.to,
+      voucherType: "CLOSING",
+      narration: "Year-end close",
+      lines: plan.lines,
+      createdAt: `${range.to}T23:59:00.000Z`,
+    };
+  }
+
+  function closeYear(
+    entries: JournalEntry[],
+    range: DateRange,
+    adjustments: { openingStock: number; closingStock: number }
+  ): JournalEntry {
+    const statements = buildFinancialStatements(accounts, entries, range, adjustments);
+    const result = buildClosingPlan({
+      accounts,
+      entries,
+      range,
+      adjustments,
+      netProfit: statements.profitAndLoss.netProfit,
+    });
+    if (!result.ok) throw new Error(result.reason);
+    return postClosing(result.plan, range);
+  }
+
+  it("transfers the year's profit into retained earnings", () => {
+    const entries = firstYear();
+    const statements = buildFinancialStatements(
+      accounts,
+      entries,
+      YEAR_ONE,
+      YEAR_ONE_ADJ
+    );
+    // 60,000 sales − (0 opening + 40,000 purchases − 10,000 closing stock)
+    expect(statements.profitAndLoss.netProfit).toBe(R(30000));
+
+    const closing = closeYear(entries, YEAR_ONE, YEAR_ONE_ADJ);
+    const closed = [...entries, closing];
+
+    const debits = closing.lines.reduce((sum, line) => sum + line.debit, 0);
+    const credits = closing.lines.reduce((sum, line) => sum + line.credit, 0);
+    expect(debits).toBe(credits);
+
+    const after = computeBalances(accounts, closed, YEAR_ONE.to);
+    expect(after.get(SYSTEM_ACCOUNTS.retainedEarnings)).toBe(R(30000));
+    // The nominal accounts are emptied; the real ones are untouched.
+    expect(after.get(SYSTEM_ACCOUNTS.sales)).toBe(0);
+    expect(after.get(SYSTEM_ACCOUNTS.purchases)).toBe(0);
+    expect(after.get(SYSTEM_ACCOUNTS.cash)).toBe(R(120000));
+    // Stock is brought to the counted figure, which is next year's opening.
+    expect(after.get(SYSTEM_ACCOUNTS.closingStock)).toBe(R(10000));
+  });
+
+  it("still reports the year's own profit after it has been closed", () => {
+    // The trap this guards: the closing entry empties the very accounts the P&L
+    // reads. Counted, it would make a closed year report nil sales and no
+    // profit — the books erasing themselves the moment they are put away.
+    const entries = firstYear();
+    const closed = [...entries, closeYear(entries, YEAR_ONE, YEAR_ONE_ADJ)];
+
+    const statements = buildFinancialStatements(
+      accounts,
+      closed,
+      YEAR_ONE,
+      YEAR_ONE_ADJ
+    );
+    expect(statements.profitAndLoss.netProfit).toBe(R(30000));
+    expect(statements.trading.netSales).toBe(R(60000));
+  });
+
+  it("keeps the closed year's own balance sheet balancing", () => {
+    const entries = firstYear();
+    const closed = [...entries, closeYear(entries, YEAR_ONE, YEAR_ONE_ADJ)];
+
+    const { balanceSheet } = buildFinancialStatements(
+      accounts,
+      closed,
+      YEAR_ONE,
+      YEAR_ONE_ADJ
+    );
+
+    // Retained earnings now holds the profit and netProfit still reports it, so
+    // the sheet only ties if the year's own close is backed out of opening
+    // capital. Counted twice, capital would read 160,000 against 130,000 assets.
+    expect(balanceSheet.openingCapital).toBe(R(100000));
+    expect(balanceSheet.netProfit).toBe(R(30000));
+    expect(balanceSheet.closingCapital).toBe(R(130000));
+    expect(balanceSheet.totalAssets).toBe(R(130000));
+    expect(balanceSheet.isBalanced).toBe(true);
+  });
+
+  it("carries profit into the next year, which is the whole point", () => {
+    // Without a close, year two's assets include everything year one earned
+    // while its equity does not, and the sheet is out by exactly that profit
+    // with nothing the shopkeeper can do about it.
+    const entries = firstYear();
+    const closed = [...entries, closeYear(entries, YEAR_ONE, YEAR_ONE_ADJ)];
+
+    const { balanceSheet } = buildFinancialStatements(
+      accounts,
+      closed,
+      YEAR_TWO,
+      YEAR_TWO_ADJ
+    );
+
+    expect(balanceSheet.openingCapital).toBe(R(130000));
+    expect(balanceSheet.netProfit).toBe(0);
+    expect(balanceSheet.totalAssets).toBe(R(130000));
+    expect(balanceSheet.isBalanced).toBe(true);
+  });
+
+  it("leaves year two out of balance when year one was never closed", () => {
+    // The defect the close exists to remove, pinned so it cannot come back
+    // quietly: unclosed, year two is short by exactly year one's profit.
+    const entries = firstYear();
+
+    const { balanceSheet } = buildFinancialStatements(
+      accounts,
+      entries,
+      YEAR_TWO,
+      YEAR_TWO_ADJ
+    );
+
+    expect(balanceSheet.isBalanced).toBe(false);
+    expect(balanceSheet.difference).toBe(R(30000));
+  });
+
+  it("refuses to close a year twice", () => {
+    const entries = firstYear();
+    const closed = [...entries, closeYear(entries, YEAR_ONE, YEAR_ONE_ADJ)];
+
+    const again = buildClosingPlan({
+      accounts,
+      entries: closed,
+      range: YEAR_ONE,
+      adjustments: YEAR_ONE_ADJ,
+      netProfit: R(30000),
+    });
+
+    expect(again.ok).toBe(false);
+    expect(isPeriodClosed(closed, YEAR_ONE)).toBe(true);
+    expect(isPeriodClosed(closed, YEAR_TWO)).toBe(false);
+  });
+
+  it("refuses to close books that do not balance", () => {
+    // Opening stock declared in settings but never posted to the ledger. The
+    // Balance Sheet already flags this; closing on top of it would bury the
+    // difference in retained earnings where it is far harder to find.
+    const entries = firstYear();
+    const result = buildClosingPlan({
+      accounts,
+      entries,
+      range: YEAR_ONE,
+      adjustments: { openingStock: R(5000), closingStock: R(10000) },
+      // Net profit as the statements would report it with that phantom opening
+      // stock: 60,000 − (5,000 + 40,000 − 10,000) = 25,000.
+      netProfit: R(25000),
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toContain("do not balance");
   });
 });

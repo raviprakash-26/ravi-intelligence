@@ -6,6 +6,8 @@ import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { GST_STATE_CODES } from "@/lib/accounting/gst";
 import type { FinancialYear } from "@/lib/accounting/types";
 import {
+  closeFinancialYear,
+  reopenFinancialYear,
   switchFinancialYear,
   updateStoreSettings,
   type SettingsFormState,
@@ -173,6 +175,66 @@ export function FinancialYearForm({
       <div className="max-w-xs">
         <SubmitButton pendingLabel="Switching…">Switch year</SubmitButton>
       </div>
+    </form>
+  );
+}
+
+/**
+ * Closing and reopening the working year.
+ *
+ * Presented as one control with two faces rather than two buttons, because
+ * only one of them is ever the right thing to press.
+ */
+export function YearEndForm({
+  financialYear,
+  isClosed,
+  netProfit,
+  canEdit,
+}: {
+  financialYear: string;
+  isClosed: boolean;
+  /** This year's profit, as the P&L reports it, for the confirmation copy. */
+  netProfit: string;
+  canEdit: boolean;
+}) {
+  const [state, formAction] = useActionState(
+    isClosed ? reopenFinancialYear : closeFinancialYear,
+    EMPTY
+  );
+
+  return (
+    <form action={formAction} className="space-y-4 px-5 py-4">
+      {isClosed ? (
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          {financialYear} is closed. Its income and expense accounts have been
+          emptied into retained earnings, and the next year starts from the
+          closing stock and balances carried forward. Reopen it if you need to
+          record something you missed — you can close it again afterwards.
+        </p>
+      ) : (
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          Closing {financialYear} moves this year&apos;s profit of{" "}
+          <span className="font-mono tabular-nums">{netProfit}</span> into
+          retained earnings, so it becomes part of your capital in the business
+          and the accounts start clean next year. Do this once the year&apos;s
+          entries are complete — until then the next year&apos;s Balance Sheet
+          will not balance.
+        </p>
+      )}
+
+      <Feedback state={state} />
+
+      {canEdit ? (
+        <div className="max-w-xs">
+          <SubmitButton pendingLabel={isClosed ? "Reopening…" : "Closing…"}>
+            {isClosed ? `Reopen ${financialYear}` : `Close ${financialYear}`}
+          </SubmitButton>
+        </div>
+      ) : (
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Only the store owner can close or reopen a year.
+        </p>
+      )}
     </form>
   );
 }
