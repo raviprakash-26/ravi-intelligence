@@ -42,3 +42,9 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# Books database (SQLite). Real books never belong in version control.
+/data
+*.db
+*.db-shm
+*.db-wal
