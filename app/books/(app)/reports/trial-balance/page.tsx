@@ -14,7 +14,7 @@ import {
 } from "@/components/books/ui";
 import { formatDate } from "@/lib/accounting/period";
 import { buildTrialBalance } from "@/lib/accounting/ledger";
-import { getBooksContext, getEntries } from "@/lib/auth/dal";
+import { getAllEntries, getBooksContext } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Trial Balance",
@@ -22,7 +22,10 @@ export const metadata: Metadata = {
 
 export default async function TrialBalancePage() {
   const context = await getBooksContext();
-  const entries = await getEntries(context.range);
+  // Full history: a trial balance is cumulative as at a date, and buildTrialBalance
+  // cuts it off at range.to itself. Feeding it only this year's entries drops every
+  // brought-forward balance and the sheet stops reflecting what the store owns.
+  const entries = await getAllEntries();
   const trialBalance = buildTrialBalance(context.accounts, entries, context.range.to);
 
   return (

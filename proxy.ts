@@ -27,8 +27,6 @@ const PROTECTED_PREFIXES = [
   "/books/settings",
 ];
 
-const AUTH_PAGES = ["/books/login", "/books/register"];
-
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSessionCookie = Boolean(request.cookies.get(SESSION_COOKIE)?.value);
@@ -37,15 +35,20 @@ export function proxy(request: NextRequest) {
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 
+  // Only the *absence* of a cookie is acted on here, and only that is reliable:
+  // no cookie means no session, full stop. Presence proves nothing without
+  // verifying the signature, so the reverse redirect — bouncing a cookie-bearing
+  // visitor off /books/login — does not belong in the proxy. It used to live
+  // here, and a stale cookie (a dev restart rotating the session secret, or a
+  // sign-out from another device) would bounce forever between this redirect and
+  // the data access layer's, with no way to reach the form and clear it. The
+  // login and register pages already send genuinely signed-in visitors to the
+  // dashboard, on a verified getSession() check.
   if (isProtected && !hasSessionCookie) {
     const loginUrl = new URL("/books/login", request.nextUrl);
     // Remember where they were headed so the login can return them there.
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
-  }
-
-  if (AUTH_PAGES.includes(pathname) && hasSessionCookie) {
-    return NextResponse.redirect(new URL("/books/dashboard", request.nextUrl));
   }
 
   return NextResponse.next();

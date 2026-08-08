@@ -331,6 +331,69 @@ describe("voucher to double entry", () => {
     ).toBe(false);
   });
 
+  it("reverses blocked credit out of a purchase return at landed cost", () => {
+    // The mirror of the case above, and it has to mirror it. Where the credit
+    // was blocked the tax was never an asset, so the return has none to hand
+    // back: it comes out of Purchase Returns at the full ₹1,180 and leaves the
+    // input accounts untouched.
+    const blockedReturn = post({
+      kind: "PURCHASE_RETURN",
+      date: "2025-04-20",
+      amount: R(1000),
+      paymentMode: "CREDIT",
+      gst: { rate: 18, placeOfSupply: TAMIL_NADU, itcEligible: false },
+    });
+
+    const returned = blockedReturn.lines.find(
+      (line) => line.accountCode === SYSTEM_ACCOUNTS.purchaseReturns
+    )!;
+
+    expect(returned.credit).toBe(R(1180));
+    expect(
+      blockedReturn.lines.some(
+        (line) =>
+          line.accountCode === SYSTEM_ACCOUNTS.inputCgst ||
+          line.accountCode === SYSTEM_ACCOUNTS.inputSgst
+      )
+    ).toBe(false);
+  });
+
+  it("leaves input GST at nil when a blocked-credit purchase is returned in full", () => {
+    // The regression this guards: the return used to credit the input accounts
+    // whether or not the purchase had debited them, handing back a credit that
+    // was never taken and driving Input CGST/SGST negative. Negative GST assets
+    // flow straight into the Balance Sheet and GSTR-3B, so the books look wrong
+    // in two places at once and neither points at the return.
+    const gst = {
+      rate: 18,
+      placeOfSupply: TAMIL_NADU,
+      itcEligible: false,
+    } as const;
+
+    const purchase = post({
+      kind: "PURCHASE",
+      date: "2025-04-12",
+      amount: R(1000),
+      paymentMode: "CREDIT",
+      gst,
+    });
+    const returned = post({
+      kind: "PURCHASE_RETURN",
+      date: "2025-04-20",
+      amount: R(1000),
+      paymentMode: "CREDIT",
+      gst,
+    });
+
+    const balances = computeBalances(accounts, [purchase, returned]);
+
+    expect(balances.get(SYSTEM_ACCOUNTS.inputCgst)).toBe(0);
+    expect(balances.get(SYSTEM_ACCOUNTS.inputSgst)).toBe(0);
+    // Both sides carry the tax, so the purchase and its return net off exactly.
+    expect(balances.get(SYSTEM_ACCOUNTS.purchases)).toBe(R(1180));
+    expect(balances.get(SYSTEM_ACCOUNTS.purchaseReturns)).toBe(R(1180));
+  });
+
   it("builds every voucher type as a balanced entry", () => {
     const vouchers: Voucher[] = [
       { kind: "SALE", date: "2025-05-01", amount: R(500), paymentMode: "CREDIT", gst: { rate: 12, placeOfSupply: TAMIL_NADU } },
@@ -436,6 +499,45 @@ describe("ledger and trial balance", () => {
     // Everything up to 30 Sep: 300000 + 354000
     expect(cash.openingBalance).toBe(R(654000));
     expect(cash.closingBalance).toBe(R(499000));
+  });
+
+  it("carries balances across financial years, not merely across months", () => {
+    // The contract every balance-carrying report depends on: these builders
+    // window the range themselves, so they must be handed the whole history.
+    // The report pages used to pre-filter to the working year before calling
+    // them, which left a store in its second year opening with nil cash and no
+    // capital — the money was in the ledger, just never asked for.
+    const priorYear = post({
+      kind: "CAPITAL",
+      date: "2025-06-01",
+      amount: R(900),
+      action: "INTRODUCE",
+      through: "CASH",
+    });
+    const thisYear = post({
+      kind: "SALE",
+      date: "2026-05-01",
+      amount: R(500),
+      paymentMode: "CASH",
+    });
+
+    const history = [priorYear, thisYear];
+    const secondYear = { from: "2026-04-01", to: "2027-03-31" };
+
+    const cash = buildLedgerAccount(
+      accounts.find((account) => account.code === SYSTEM_ACCOUNTS.cash)!,
+      history,
+      secondYear
+    );
+
+    expect(cash.openingBalance).toBe(R(900));
+    expect(cash.closingBalance).toBe(R(1400));
+
+    // The capital introduced in the first year is still on the books at the end
+    // of the second, and the whole thing still ties.
+    const balances = computeBalances(accounts, history, secondYear.to);
+    expect(balances.get(SYSTEM_ACCOUNTS.capital)).toBe(R(900));
+    expect(buildTrialBalance(accounts, history, secondYear.to).isBalanced).toBe(true);
   });
 
   it("nets supplier dues after a part payment", () => {

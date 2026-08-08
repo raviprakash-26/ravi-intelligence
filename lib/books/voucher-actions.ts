@@ -117,7 +117,9 @@ export async function postVoucher(
     };
   }
 
-  if (amount <= 0) {
+  // A manual journal carries its amounts on the lines, not in this field — the
+  // form posts a hidden zero for it. Every other kind needs a positive figure.
+  if (kind !== "JOURNAL" && amount <= 0) {
     return { fieldErrors: { amount: ["Enter an amount greater than zero."] } };
   }
 
@@ -415,11 +417,16 @@ function syncOpeningStockEntry(
   const { range, openingStock } = options;
   const allEntries = repository.listJournalEntries(tenantId);
 
-  // An entry this function wrote previously, which must be replaced rather than
-  // added to when the figure is edited.
+  // An entry this function wrote previously *for this year*, which must be
+  // replaced rather than added to when the figure is edited. The range check is
+  // load-bearing: each year carries its own opening-stock entry, and an
+  // unscoped search finds the earliest one in the store's history and deletes
+  // it, retroactively unbalancing a year that has already been closed and filed.
   const existing = allEntries.find(
     (entry) =>
       entry.voucherType === "OPENING" &&
+      entry.date >= range.from &&
+      entry.date <= range.to &&
       entry.lines.some((line) => line.accountCode === SYSTEM_ACCOUNTS.closingStock)
   );
 

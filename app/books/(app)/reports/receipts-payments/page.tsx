@@ -11,7 +11,7 @@ import {
 } from "@/components/books/ui";
 import { formatDate } from "@/lib/accounting/period";
 import { buildReceiptsAndPayments } from "@/lib/accounting/statements";
-import { getBooksContext, getEntries } from "@/lib/auth/dal";
+import { getAllEntries, getBooksContext } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Receipts & Payments",
@@ -19,7 +19,10 @@ export const metadata: Metadata = {
 
 export default async function ReceiptsAndPaymentsPage() {
   const context = await getBooksContext();
-  const entries = await getEntries();
+  // Full history, and it must stay that way: buildReceiptsAndPayments derives
+  // the opening cash balance from entries dated before range.from, so narrowing
+  // this to the working year would silently open every year at nil cash.
+  const entries = await getAllEntries();
   const report = buildReceiptsAndPayments(context.accounts, entries, context.range);
 
   const netMovement = report.closingBalance - report.openingBalance;

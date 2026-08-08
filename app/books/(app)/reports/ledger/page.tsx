@@ -15,7 +15,7 @@ import {
 import { buildAllLedgers, buildLedgerAccount } from "@/lib/accounting/ledger";
 import { formatDate } from "@/lib/accounting/period";
 import { normalBalanceOf } from "@/lib/accounting/types";
-import { getBooksContext, getEntries } from "@/lib/auth/dal";
+import { getAllEntries, getBooksContext } from "@/lib/auth/dal";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -27,7 +27,12 @@ export default async function LedgerPage(props: {
 }) {
   const { account: requestedCode } = await props.searchParams;
   const context = await getBooksContext();
-  const entries = await getEntries(context.range);
+  // The whole history, deliberately. buildLedgerAccount derives each account's
+  // opening balance from the entries dated before the window and windows the
+  // rest itself, so handing it a list already filtered to this year leaves
+  // every ledger opening at zero — cash that has been in the till for years
+  // appears to start the year empty.
+  const entries = await getAllEntries();
 
   // Only accounts with activity are worth listing; a chart of 50 accounts of
   // which 6 are used makes the useful ones hard to find.

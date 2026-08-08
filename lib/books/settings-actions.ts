@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { validateGstin } from "@/lib/accounting/gst";
 import { financialYearRange, startYearOf } from "@/lib/accounting/period";
-import { getBooksContext } from "@/lib/auth/dal";
+import { assertCanWrite, getBooksContext } from "@/lib/auth/dal";
 import { PLANS } from "@/lib/billing/plans";
 import * as repository from "@/lib/db/repository";
 import type { PlanId } from "@/lib/db/repository";
@@ -103,6 +103,19 @@ export async function switchFinancialYear(
   formData: FormData
 ): Promise<SettingsFormState> {
   const context = await getBooksContext();
+
+  if (context.user.role !== "OWNER") {
+    return { error: "Only the store owner can change the working year." };
+  }
+
+  // This writes: it moves tenant-wide state and may create the period row. A
+  // lapsed tenant keeps read access to the year already selected, and can still
+  // reach the plan picker, which is why changePlan is the one write left open.
+  const permission = await assertCanWrite();
+  if (!permission.ok) {
+    return { error: permission.message };
+  }
+
   const label = String(formData.get("financialYear") ?? "");
 
   let startYear: number;

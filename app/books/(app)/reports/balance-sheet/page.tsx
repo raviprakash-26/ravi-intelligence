@@ -12,7 +12,7 @@ import {
 } from "@/components/books/ui";
 import { formatDate } from "@/lib/accounting/period";
 import { buildFinancialStatements } from "@/lib/accounting/statements";
-import { getBooksContext, getEntries } from "@/lib/auth/dal";
+import { getAllEntries, getBooksContext } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Balance Sheet",
@@ -20,7 +20,10 @@ export const metadata: Metadata = {
 
 export default async function BalanceSheetPage() {
   const context = await getBooksContext();
-  const entries = await getEntries(context.range);
+  // Full history. buildBalanceSheet takes balances as at range.to and the P&L
+  // windows itself to the year, so this is the input both want; a year-filtered
+  // list silently drops brought-forward assets, liabilities and capital.
+  const entries = await getAllEntries();
   const { balanceSheet, profitAndLoss } = buildFinancialStatements(
     context.accounts,
     entries,

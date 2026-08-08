@@ -15,7 +15,7 @@ import {
   formatRatio,
   type Ratio,
 } from "@/lib/accounting/ratios";
-import { requireFeature, getEntries } from "@/lib/auth/dal";
+import { requireFeature, getAllEntries } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Financial Ratios",
@@ -35,7 +35,10 @@ const HEALTH_TONE: Record<NonNullable<Ratio["health"]>, "green" | "amber" | "red
 
 export default async function RatiosPage() {
   const context = await requireFeature("ratios");
-  const entries = await getEntries(context.range);
+  // Full history: every liquidity and efficiency ratio divides by a balance
+  // sheet figure, so a truncated opening balance skews the ratio rather than
+  // merely understating one line.
+  const entries = await getAllEntries();
 
   const statements = buildFinancialStatements(
     context.accounts,

@@ -23,7 +23,7 @@ import { buildTrialBalance, computeBalances } from "@/lib/accounting/ledger";
 import { addPaise, formatPaise } from "@/lib/accounting/money";
 import { formatDate } from "@/lib/accounting/period";
 import { buildFinancialStatements } from "@/lib/accounting/statements";
-import { getBooksContext, getEntries } from "@/lib/auth/dal";
+import { getAllEntries, getBooksContext } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -31,7 +31,15 @@ export const metadata: Metadata = {
 
 export default async function DashboardPage() {
   const context = await getBooksContext();
-  const entries = await getEntries(context.range);
+  // Two different questions are asked of the books here, and they need
+  // different slices. What the store *holds* — cash, debtors, creditors — is
+  // cumulative and must be read from the whole history; the builders below cut
+  // it off at range.to themselves. What the store *did this year* is the
+  // windowed slice, used for the lists further down.
+  const entries = await getAllEntries();
+  const yearEntries = entries.filter(
+    (entry) => entry.date >= context.range.from && entry.date <= context.range.to
+  );
 
   const balances = computeBalances(context.accounts, entries, context.range.to);
   const trialBalance = buildTrialBalance(context.accounts, entries, context.range.to);
@@ -50,9 +58,9 @@ export default async function DashboardPage() {
   const debtors = balances.get(SYSTEM_ACCOUNTS.debtors) ?? 0;
   const creditors = balances.get(SYSTEM_ACCOUNTS.creditors) ?? 0;
 
-  const recent = [...entries].reverse().slice(0, 8);
+  const recent = [...yearEntries].reverse().slice(0, 8);
   const stockMissing =
-    context.adjustments.closingStock === 0 && entries.length > 0;
+    context.adjustments.closingStock === 0 && yearEntries.length > 0;
 
   return (
     <>

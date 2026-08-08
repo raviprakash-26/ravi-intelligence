@@ -456,7 +456,7 @@ export function buildEntry(voucher: Voucher, context: BuildContext): BuiltEntry 
           ],
         };
       }
-      const { detail, taxableValue, gross } = resolveGst(
+      const { detail, taxableValue, totalTax, gross } = resolveGst(
         voucher.amount,
         voucher.gst,
         "INWARD",
@@ -470,6 +470,31 @@ export function buildEntry(voucher: Voucher, context: BuildContext): BuiltEntry 
         igst: -detail.igst,
         cess: -detail.cess,
       };
+
+      // Mirrors the blocked-credit branch of PURCHASE. Where the credit was
+      // blocked, the tax was never an asset — it went into the cost of the
+      // goods — so the return has no Input GST to give back and reverses out of
+      // Purchase Returns at the full landed cost instead. Crediting the input
+      // accounts here regardless, as this used to, drives them negative: the
+      // return hands back a credit the purchase never took, and those negative
+      // balances flow straight into the Balance Sheet and GSTR-3B.
+      if (!detail.itcEligible) {
+        return {
+          ...base,
+          voucherType: "PURCHASE_RETURN",
+          narration:
+            voucher.narration ?? "Goods returned to supplier (credit blocked)",
+          gst: reversed,
+          lines: compact([
+            debit(settle, gross),
+            credit(
+              SYSTEM_ACCOUNTS.purchaseReturns,
+              addPaise(taxableValue, totalTax)
+            ),
+          ]),
+        };
+      }
+
       return {
         ...base,
         voucherType: "PURCHASE_RETURN",

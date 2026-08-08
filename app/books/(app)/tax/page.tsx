@@ -39,6 +39,10 @@ function slabRange(from: Paise, to: Paise | null): string {
 
 export default async function TaxPage() {
   const context = await requireFeature("tax-planner");
+  // Deliberately the working year only, unlike the balance-carrying reports.
+  // Everything read below is a flow measured over the year — net profit, net
+  // sales, and the scan for cash receipts further down, which would pick up
+  // prior years' sales if handed the whole history.
   const entries = await getEntries(context.range);
 
   const statements = buildFinancialStatements(
@@ -64,20 +68,55 @@ export default async function TaxPage() {
   const chosen = comparison.cheaper === "NEW" ? comparison.newRegime : comparison.oldRegime;
   const schedule = buildAdvanceTaxSchedule(chosen.totalTax, startYearOf(taxYear));
 
-  // Receipts through bank and UPI qualify for the lower 6% presumptive rate.
-  const cashSales = entries
-    .filter((entry) => entry.voucherType === "SALE")
+  const turnover = statements.trading.netSales;
+
+  // Receipts through bank and UPI qualify for the lower 6% presumptive rate,
+  // and computePresumptiveIncome recovers the cash side by subtracting the
+  // digital figure from turnover — so the two must be measured the same way.
+  // They were not: netSales is taxable value with GST excluded, while a
+  // settlement line is gross, carrying the GST the customer actually handed
+  // over. Subtracting a gross cash figure from a net turnover understated
+  // digital turnover by the GST on every cash sale, pushing income onto the
+  // wrong rate and skewing the cash-share test that picks the ₹2 crore limit
+  // over the ₹3 crore one.
+  //
+  // Each sale therefore contributes its own taxable value in proportion to how
+  // much of its settlement was cash. Returns net off on the same basis, their
+  // settlement sitting on the credit side rather than the debit side.
+  //
+  // Known limit: a credit sale later collected in cash still counts as digital.
+  // Attributing it properly means tracing a receipt back to the invoice it
+  // settles, which the entry model does not record.
+  const cashTurnover = entries
+    .filter(
+      (entry) =>
+        entry.voucherType === "SALE" || entry.voucherType === "SALES_RETURN"
+    )
     .reduce((sum, entry) => {
-      const cashLine = entry.lines.find(
-        (line) => line.accountCode === SYSTEM_ACCOUNTS.cash
+      const isReturn = entry.voucherType === "SALES_RETURN";
+      const settled = entry.lines.reduce(
+        (total, line) => total + (isReturn ? line.credit : line.debit),
+        0
       );
-      return sum + (cashLine?.debit ?? 0);
+      if (settled === 0) return sum;
+
+      const cash = entry.lines.reduce(
+        (total, line) =>
+          line.accountCode === SYSTEM_ACCOUNTS.cash
+            ? total + (isReturn ? line.credit : line.debit)
+            : total,
+        0
+      );
+      if (cash === 0) return sum;
+
+      const taxable = entry.gst ? Math.abs(entry.gst.taxableValue) : settled;
+      const contribution = Math.round((taxable * cash) / settled);
+      return sum + (isReturn ? -contribution : contribution);
     }, 0);
 
-  const turnover = statements.trading.netSales;
   const presumptive = computePresumptiveIncome({
     turnover,
-    digitalTurnover: Math.max(0, turnover - cashSales),
+    digitalTurnover: Math.max(0, turnover - Math.max(0, cashTurnover)),
     actualProfit: businessProfit,
   });
 
