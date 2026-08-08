@@ -37,6 +37,8 @@ export default defineConfig({
     command: "npm run dev",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
+    // A cold start on a CI runner is a good deal slower than the 60s default.
+    timeout: 180_000,
     env: {
       // The books module needs somewhere to put its database and a session
       // signing key. Both are pointed at throwaway values so a test run never
