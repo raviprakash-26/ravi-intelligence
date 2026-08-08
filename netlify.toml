@@ -2,4 +2,8 @@
   command = "npm run build"
 
 [build.environment]
-  NODE_VERSION = "20"
+  # Raised from 20: better-sqlite3, added as a production dependency for the
+  # books module, declares `node >=22`. The build itself does not load it — the
+  # books routes are all dynamic — but running the deploy on an engine the
+  # dependency tree does not support is asking for a runtime surprise.
+  NODE_VERSION = "22"

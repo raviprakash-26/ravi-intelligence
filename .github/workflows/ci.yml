@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same branch makes an in-flight run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Node 22 is the floor, not 20. Next.js 16 itself is happy on 20.9+, but
+  # better-sqlite3 declares `node >=22` and jsdom `^22.22.2`. On Node 20 the
+  # native module loads and then kills the Vitest worker with no useful error,
+  # so this must stay in step with the `engines` field in package.json.
+  NODE_VERSION: "22"
+
+jobs:
+  verify:
+    name: Typecheck, lint, unit tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # Scoped to the paths this project owns. A repo-wide `npm run lint`
+      # currently fails on three violations that predate these directories
+      # (two in components/search/search-palette.tsx, one in lib/newsletter.ts);
+      # widen this to `npm run lint` once those are cleared.
+      - name: Lint
+        run: npx eslint lib/accounting lib/auth lib/billing lib/books lib/db components/books app/books proxy.ts e2e
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  e2e:
+    name: Browser tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: npx playwright test --project=chromium
+        env:
+          # Throwaway values: the suite registers its own stores against a
+          # scratch database and never touches real data.
+          BOOKS_DATABASE_PATH: .playwright/ci.db
+          BOOKS_SESSION_SECRET: ci-only-session-secret-not-for-production-use
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

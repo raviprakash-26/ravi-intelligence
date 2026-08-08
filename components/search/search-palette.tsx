@@ -32,7 +32,14 @@ export function SearchPalette() {
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || e.key === "/") {
-        if (e.key === "/" && (e.target as HTMLElement).tagName === "INPUT") return;
+        // "/" is a normal character while typing, so it must not hijack focus
+        // out of any field the user is filling in.
+        const target = e.target as HTMLElement | null;
+        const isEditing =
+          !!target &&
+          (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) ||
+            target.isContentEditable);
+        if (e.key === "/" && isEditing) return;
         e.preventDefault();
         setIsOpen((prev) => !prev);
       }
@@ -150,6 +157,10 @@ export function SearchPalette() {
         return <Terminal className="h-4 w-4 text-slate-400" />;
     }
   };
+
+  // Without this the full-screen overlay below renders on every page, covering
+  // the site and swallowing every click.
+  if (!isOpen) return null;
 
   return (
     <div
