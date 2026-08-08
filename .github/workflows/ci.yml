@@ -11,9 +11,11 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Node 20.9+ is the floor for Next.js 16, and 20 is what netlify.toml pins,
-  # so CI runs on the same major the deploy does.
-  NODE_VERSION: "20"
+  # Node 22 is the floor, not 20. Next.js 16 itself is happy on 20.9+, but
+  # better-sqlite3 declares `node >=22` and jsdom `^22.22.2`. On Node 20 the
+  # native module loads and then kills the Vitest worker with no useful error,
+  # so this must stay in step with the `engines` field in package.json.
+  NODE_VERSION: "22"
 
 jobs:
   verify:
