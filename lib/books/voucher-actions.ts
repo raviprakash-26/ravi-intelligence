@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { buildAccountIndex } from "@/lib/accounting/chart-of-accounts";
+import { buildAccountIndex, SYSTEM_ACCOUNTS } from "@/lib/accounting/chart-of-accounts";
 import { validateGstin } from "@/lib/accounting/gst";
 import { buildEntry, validateEntry, type Voucher } from "@/lib/accounting/journal";
-import { MoneyError, rupeesToPaise } from "@/lib/accounting/money";
+import { computeBalances } from "@/lib/accounting/ledger";
+import { MoneyError, rupeesToPaise, type Paise } from "@/lib/accounting/money";
 import { financialYearRange } from "@/lib/accounting/period";
 import type { GstRate } from "@/lib/accounting/types";
 import { assertCanWrite, getBooksContext } from "@/lib/auth/dal";
@@ -362,6 +363,12 @@ export async function updateStock(
     closingStock,
   });
 
+  const openingEntry = syncOpeningStockEntry(context.tenant.id, context.user.id, {
+    financialYear: context.financialYear,
+    range,
+    openingStock,
+  });
+
   repository.appendAudit({
     tenantId: context.tenant.id,
     userId: context.user.id,
@@ -372,5 +379,92 @@ export async function updateStock(
   });
 
   revalidatePath("/books", "layout");
-  return { ok: true, message: "Stock figures saved." };
+  return {
+    ok: true,
+    message: openingEntry
+      ? `Stock figures saved. Opening stock was also recorded as ${openingEntry}, debited to Stock against your capital — without that entry the stock would appear on the Balance Sheet with nothing funding it.`
+      : "Stock figures saved.",
+  };
+}
+
+/**
+ * Keeps an opening balance entry in step with the declared opening stock.
+ *
+ * Opening stock is goods the business already owns on day one, so it has to
+ * exist in the ledger as well as in the period record. Left as a bare
+ * adjustment it lands on the Balance Sheet as an asset with nothing on the
+ * other side, and the sheet fails to balance by exactly that amount — which
+ * looks like a bug in the books rather than a missing entry.
+ *
+ * The counterpart is the owner's capital, because stock brought into the
+ * business at the point the books open is precisely what the owner has put in.
+ * Only stock that is not already carried in from a prior year is posted, so a
+ * store that has been running here for years is left untouched.
+ *
+ * @returns the voucher number when an entry was written, otherwise null.
+ */
+function syncOpeningStockEntry(
+  tenantId: string,
+  userId: string,
+  options: {
+    financialYear: string;
+    range: { from: string; to: string };
+    openingStock: Paise;
+  }
+): string | null {
+  const { range, openingStock } = options;
+  const allEntries = repository.listJournalEntries(tenantId);
+
+  // An entry this function wrote previously, which must be replaced rather than
+  // added to when the figure is edited.
+  const existing = allEntries.find(
+    (entry) =>
+      entry.voucherType === "OPENING" &&
+      entry.lines.some((line) => line.accountCode === SYSTEM_ACCOUNTS.closingStock)
+  );
+
+  if (existing) {
+    const previousAmount =
+      existing.lines.find(
+        (line) => line.accountCode === SYSTEM_ACCOUNTS.closingStock
+      )?.debit ?? 0;
+    if (previousAmount === openingStock) return null;
+    repository.deleteJournalEntry(tenantId, existing.id);
+  }
+
+  if (openingStock <= 0) return null;
+
+  // Stock genuinely carried forward from an earlier year is already in the
+  // ledger and must not be posted a second time.
+  if (!existing) {
+    const carriedIn = computeBalances(
+      repository.listAccounts(tenantId),
+      allEntries.filter((entry) => entry.date < range.from)
+    ).get(SYSTEM_ACCOUNTS.closingStock);
+
+    if (carriedIn && carriedIn !== 0) return null;
+  }
+
+  const entry = repository.createJournalEntry({
+    tenantId,
+    date: range.from,
+    voucherType: "OPENING",
+    narration: "Opening stock brought into the business",
+    lines: [
+      { accountCode: SYSTEM_ACCOUNTS.closingStock, debit: openingStock, credit: 0 },
+      { accountCode: SYSTEM_ACCOUNTS.capital, debit: 0, credit: openingStock },
+    ],
+    createdBy: userId,
+  });
+
+  repository.appendAudit({
+    tenantId,
+    userId,
+    action: "OPENING_STOCK_POSTED",
+    entity: "journal_entry",
+    entityId: entry.id,
+    detail: { voucherNo: entry.voucherNo, openingStock },
+  });
+
+  return entry.voucherNo;
 }
